@@ -7,7 +7,7 @@ clean:
 
 install:
 	@echo "Installing cargo dependencies"
-	@cargo install mdbook
+	@cargo install mdbook --force
 
 build: clean
 	@echo "Building the book"
