@@ -40,9 +40,6 @@ mod context {
             }
             context
         }
-        fn do_stuff() {
-            println!("Doing stuff in BaseContext");
-        }
     }
 
     impl Context for BaseContext {
@@ -85,19 +82,19 @@ mod context {
         type DataContainer;
 
         // This should be context: &impl Context
-        fn init(context: &BaseContext) -> Self::DataContainer;
+        fn init(context: &impl Context) -> Self::DataContainer;
     }
 
     #[macro_export]
     macro_rules! define_data_plugin {
-        ($data_plugin:ident, $data_container:ty, $init:expr) => {
+        ($data_plugin:ident, $data_container:ty, |$ctx:ident| $body:expr) => {
             struct $data_plugin;
 
             impl $crate::context::DataPlugin for $data_plugin {
                 type DataContainer = $data_container;
 
-                fn init(context: &$crate::context::BaseContext) -> Self::DataContainer {
-                    $init(context)
+                fn init($ctx: &impl Context) -> Self::DataContainer {
+                    $body
                 }
             }
 
@@ -171,12 +168,12 @@ mod test {
     use super::context::{BaseContext, Context};
     use super::define_data_plugin;
 
-    define_data_plugin!(A, usize, |context: &BaseContext| {
+    define_data_plugin!(A, usize, |context| {
         println!("Initializing A");
         *context.get_data(B) + 1
     });
 
-    define_data_plugin!(B, usize, |context: &BaseContext| {
+    define_data_plugin!(B, usize, |context| {
         println!("Initializing B");
         *context.get_data(C) + 1
     });
