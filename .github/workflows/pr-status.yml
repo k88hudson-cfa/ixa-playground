@@ -55,17 +55,25 @@ jobs:
 
             if (label) {
               // Remove existing labels
-              await github.rest.issues.removeAllLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-              });
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                labels: [label],
-              });
+              let existingLabels = context.payload.pull_request.labels.map(l => l.name).filter(l => Object.values(LABELS).includes(l));
+              if (!existingLabels.includes(label) {
+                if (existingLabels.length > 0) {
+                  for (const existingLabel of existingLabels) {
+                    await github.rest.issues.removeLabel({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: prNumber,
+                      name: existingLabel,
+                    });
+                  }
+                }
+                // Add the new labels
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  labels: [label],
+                });
             }
 
             if (assignee) {
