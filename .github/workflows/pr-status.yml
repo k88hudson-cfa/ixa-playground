@@ -18,80 +18,87 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const pr = context.payload.pull_request;
-            const prNumber = pr.number;
-            const author = pr.user;
             const LABELS = {
-              READY: 'needs-review',
-              APPROVED: 'approved',
-              CHANGES_REQUESTED: 'changes-requested',
+              READY: "needs-review",
+              APPROVED: "approved",
+              CHANGES_REQUESTED: "changes-requested",
+            };
+
+            const is_review_requested =
+              context.eventName === "pull_request" &&
+              context.payload.action === "review_requested";
+            const is_review_submitted =
+              context.eventName === "pull_request_review" &&
+              context.payload.action === "submitted";
+
+            if (!is_review_requested && !is_review_submitted) {
+              console.log("No matching event found");
+              return;
             }
+
+            const pull_request = context.payload.pull_request;
+            const issue_number = pull_request.number;
+            const existing_labels = pull_request.labels
+              .map((l) => l.name)
+              .filter((l) => Object.values(LABELS).includes(l));
+            const existing_assignees = pull_request.assignees
+              .map((a) => a.login)
+              .filter((a) => a);
+            const author = pull_request.user?.login;
+
+            console.log(
+              `Author: ${author}, Existing Labels: ${existing_labels}, Existing Assignees: ${existing_assignees}`
+            );
 
             let label;
             let assignee;
 
-            if (context.eventName === 'pull_request' && context.payload.action === 'review_requested') {
-              const reviewer = context.payload.requested_reviewer;
-
+            if (is_review_requested) {
+              const reviewer = context.payload.requested_reviewer?.login;
               label = LABELS.READY;
-              assignee = reviewer.login;
-
-            } else if (context.eventName === 'pull_request_review' && context.payload.action === 'submitted') {
+              assignee = reviewer;
+            } else if (is_review_submitted) {
               const review = context.payload.review;
-              if (!review) return;
-
-              if (review.state === 'approved') {
+              if (review.state === "approved") {
                 label = LABELS.APPROVED;
-                assignee = author.login;
-              } else if (review.state === 'changes_requested') {
+                assignee = author;
+              } else if (review.state === "changes_requested") {
                 label = LABELS.CHANGES_REQUESTED;
-                assignee = author.login;
-              } else {
-                return; // Unhandled state
+                assignee = author;
               }
-            } else {
-              return; // Unsupported event
             }
 
-            if (label) {
+            if (label && !existing_labels.includes(label)) {
               // Remove existing labels
-              let existingLabels = context.payload.pull_request.labels.map(l => l.name).filter(l => Object.values(LABELS).includes(l));
-              if (!existingLabels.includes(label) {
-                if (existingLabels.length > 0) {
-                  for (const existingLabel of existingLabels) {
-                    await github.rest.issues.removeLabel({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: prNumber,
-                      name: existingLabel,
-                    });
-                  }
-                }
-                // Add the new labels
-                await github.rest.issues.addLabels({
+              if (existing_labels.length > 0) {
+                await github.rest.issues.removeAllLabels({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  issue_number: prNumber,
-                  labels: [label],
-                });
-            }
-
-            if (assignee) {
-              let existingAssignees = context.payload.pull_request.assignees.map(a => a.login).filter(a => a);
-              if (!existingAssignees.includes(assignee)) {
-                if (existingAssignees.length > 0) {
-                  await github.rest.issues.removeAssignees({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: prNumber,
-                    assignees: existingAssignees
-                  });
-                }
-                await github.rest.issues.addAssignees({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: prNumber,
-                  assignees: [assignee],
+                  issue_number,
                 });
               }
+              // Add the new label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                labels: [label],
+              });
+            }
+
+            if (assignee && !existing_assignees.includes(assignee)) {
+              if (existing_assignees.length > 0) {
+                await github.rest.issues.removeAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number,
+                  assignees: existing_assignees,
+                });
+              }
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                assignees: [assignee],
+              });
             }
