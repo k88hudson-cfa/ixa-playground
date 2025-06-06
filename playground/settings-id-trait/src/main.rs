@@ -18,8 +18,15 @@ mod ixa {
                 data: HashMap::new(),
             }
         }
+        pub fn add_plan<F>(&mut self, time: f64, plan: F)
+        where
+            F: FnOnce(&mut Context) + 'static,
+        {
+            // Here you would schedule the plan to be executed
+        }
     }
     pub struct Person;
+    #[derive(Copy, Clone)]
     pub struct PersonId {
         pub id: usize,
     }
@@ -76,10 +83,15 @@ mod settings {
     }
 
     pub trait SettingContextExt {
+        fn get_contact(
+            &self,
+            person_id: PersonId,
+            setting_id: &dyn AnySettingId,
+        ) -> Option<PersonId>;
         fn get_settings_members<T: SettingType>(&self, setting_id: SettingId<T>) -> Vec<PersonId>;
         fn get_random_setting(&self, person: PersonId) -> Box<dyn AnySettingId>;
         fn get_itinerary(&self, person: PersonId) -> Vec<ItineraryEntry>;
-        fn get_alpha(&self, person: PersonId, setting: impl AnySettingId) -> f64;
+        fn get_alpha(&self, person: PersonId, setting: &dyn AnySettingId) -> f64;
     }
 
     #[macro_export]
@@ -100,7 +112,10 @@ define_setting_type!(Home);
 define_setting_type!(Work);
 
 impl SettingContextExt for Context {
-    fn get_alpha(&self, person: PersonId, setting: impl AnySettingId) -> f64 {
+    fn get_contact(&self, person_id: PersonId, setting_id: &dyn AnySettingId) -> Option<PersonId> {
+        Some(PersonId::new(1))
+    }
+    fn get_alpha(&self, person: PersonId, setting: &dyn AnySettingId) -> f64 {
         let id = setting.id();
         let type_id = setting.type_id();
         // Here you would go look up the alpha by type_id
@@ -120,8 +135,60 @@ impl SettingContextExt for Context {
     }
 }
 
+struct Forecast {
+    next_time: f64,
+    forecasted_total_infectiousness: f64,
+}
+
+fn get_forecast(context: &Context, person: PersonId) -> Option<Forecast> {
+    Some(Forecast {
+        next_time: 1.0,
+        forecasted_total_infectiousness: 0.5,
+    })
+}
+fn evaluate_forecast(
+    context: &Context,
+    person: PersonId,
+    forecasted_total_infectiousness: f64,
+) -> bool {
+    true
+}
+
+pub fn infection_attempt(context: &Context, infector: PersonId) -> Option<PersonId> {
+    // Choose a setting
+    let setting_id = context.get_random_setting(infector);
+
+    // Get a contact
+    let next_contact = context.get_contact(infector, &*setting_id)?;
+
+    // Return early if they're not Susceptible
+    // if self.get_person_property(next_contact, InfectionStatus) != InfectionStatus::S {
+    //     return None;
+    // }
+
+    // Infect them
+    // self.infect_person(infector, next_contact, setting_id);
+
+    Some(next_contact)
+}
+
+fn schedule_next_forecasted_infection(context: &mut Context, person: PersonId) {
+    if let Some(Forecast {
+        next_time,
+        forecasted_total_infectiousness,
+    }) = get_forecast(context, person)
+    {
+        context.add_plan(next_time, move |context| {
+            if evaluate_forecast(context, person, forecasted_total_infectiousness) {
+                infection_attempt(context, person);
+            }
+            schedule_next_forecasted_infection(context, person);
+        });
+    }
+}
+
 fn main() {
-    let context = Context::new();
-    context.get_itinerary(PersonId::new(1));
-    let setting = context.get_random_setting(PersonId::new(1));
+    let mut context = Context::new();
+    let person = PersonId::new(1);
+    schedule_next_forecasted_infection(&mut context, person);
 }

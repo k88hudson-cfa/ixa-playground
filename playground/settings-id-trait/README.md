@@ -13,7 +13,7 @@ pub trait SettingContextExt {
     // We don't know the type of setting
     fn get_random_setting(&self, person: PersonId) -> Box<dyn AnySettingId>;
     // We know the type of setting, but we want this to work with ANY setting type
-    fn get_alpha(&self, person: PersonId, setting: impl AnySettingId) -> f64;
+    fn get_alpha(&self, person: PersonId, setting: &dyn AnySettingId) -> f64;
 }
 ```
 
