@@ -12,7 +12,7 @@ install:
 		cargo install mdbook --force; \
 	}
 
-build: clean
+build: install clean
 	@echo "Building the book"
 	@mdbook build
 
