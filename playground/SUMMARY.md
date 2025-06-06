@@ -8,7 +8,7 @@
 
 
 # Settings Explorations
-- [Settings ID trait](settings-id-trait/README.md)
-- [Settings trait](./settings-trait/README.md)
-- [Settings trait: flat](./settings-trait-flat/README.md)
-- [Settings enum](./settings-enum/README.md)
+- [AnySettingId trait](./settings-id-trait/README.md)
+- [One setting per entity](./settings-trait/README.md)
+- [One entity for all settings](./settings-trait-flat/README.md)
+- [One entity + Settings enum](./settings-enum/README.md)
