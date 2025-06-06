@@ -25,7 +25,10 @@ pub use context::*;
 mod entity {
 
     use super::*;
+
     pub trait Entity: 'static {}
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct EntityId<T: Entity> {
         id: usize,
         _marker: std::marker::PhantomData<T>,
@@ -124,57 +127,51 @@ pub use people::*;
 
 mod settings {
     use super::*;
-
+    #[derive(Debug, Clone, Copy)]
     pub struct SettingEntity;
     impl Entity for SettingEntity {}
 
-    pub trait SettingType: 'static {}
-
-    pub struct Setting<T: SettingType> {
-        _phantom: std::marker::PhantomData<T>,
-        pub entity_id: EntityId<SettingEntity>,
+    pub trait SettingType: 'static {
+        fn name(&self) -> &'static str;
     }
-    impl<T: SettingType> Setting<T> {
-        pub fn new(id: usize) -> Self {
+
+    pub struct SettingId<T: SettingType> {
+        setting_type: T,
+        entity_id: EntityId<SettingEntity>,
+    }
+
+    impl<T: SettingType> SettingId<T> {
+        pub fn new(setting_type: T, id: usize) -> Self {
             Self {
-                _phantom: std::marker::PhantomData,
+                setting_type,
                 entity_id: EntityId::new(id),
             }
+        }
+        pub fn entity_id(&self) -> EntityId<SettingEntity> {
+            self.entity_id
         }
         pub fn get_id(&self) -> usize {
             self.entity_id.id()
         }
     }
 
-    pub trait SettingId {
-        fn get_id(&self) -> usize;
-    }
-
-    impl<T: SettingType> SettingId for Setting<T> {
-        fn get_id(&self) -> usize {
-            self.entity_id.id()
-        }
-    }
-
-    pub struct ItineraryEntry {
-        setting: Box<dyn SettingId>,
+    pub struct ItineraryEntry<T: SettingType> {
+        setting_id: SettingId<T>,
         ratio: f64,
     }
-    impl ItineraryEntry {
-        pub fn new<T: SettingType>(setting_id: Setting<T>, ratio: f64) -> Self {
-            let setting: Box<dyn SettingId> = Box::new(setting_id);
-            Self { setting, ratio }
+    impl<T: SettingType> ItineraryEntry<T> {
+        pub fn new(setting_id: SettingId<T>, ratio: f64) -> Self {
+            Self { setting_id, ratio }
         }
     }
 
     pub trait SettingProperty: EntityProperty {}
 
-    pub trait SettingContextExt {
-        fn get_setting_property<P: SettingProperty>(&self, setting: Box<dyn SettingId>)
-        -> P::Value;
-        fn get_settings_members<T: SettingType>(&self, setting_id: Setting<T>) -> Vec<PersonId>;
-        fn get_itinerary(&self, person: PersonId) -> Vec<ItineraryEntry>;
-        fn get_random_setting(&self, person: PersonId) -> Box<dyn SettingId>;
+    pub trait SettingContextExt<T: SettingType> {
+        fn get_setting_property<P: SettingProperty>(&self, setting: SettingId<T>) -> P::Value;
+        fn get_settings_members(&self, setting_id: SettingId<T>) -> Vec<PersonId>;
+        fn get_itinerary(&self, person: PersonId) -> Vec<ItineraryEntry<T>>;
+        fn get_random_setting(&self, person: PersonId) -> SettingId<T>;
     }
 
     pub struct Alpha;
@@ -194,26 +191,41 @@ mod settings {
 
 pub use settings::*;
 
-struct Home;
-impl SettingType for Home {}
+enum SettingEnum {
+    Home,
+    Work,
+}
 
-struct Work;
-impl SettingType for Work {}
+impl SettingType for SettingEnum {
+    fn name(&self) -> &'static str {
+        match self {
+            SettingEnum::Home => "Home",
+            SettingEnum::Work => "Work",
+        }
+    }
+}
 
-impl SettingContextExt for Context {
-    fn get_setting_property<P: SettingProperty>(&self, setting: Box<dyn SettingId>) -> P::Value {
-        let setting_id = setting.get_id();
-        let entity_type_id = TypeId::of::<SettingEntity>();
-        self.get_property_by_type_id::<P>(entity_type_id, setting_id)
+impl SettingContextExt<SettingEnum> for Context {
+    fn get_setting_property<P: SettingProperty>(
+        &self,
+        setting: SettingId<SettingEnum>,
+    ) -> P::Value {
+        self.get_property::<SettingEntity, P>(setting.entity_id())
     }
-    fn get_settings_members<T: SettingType>(&self, setting_id: Setting<T>) -> Vec<PersonId> {
-        vec![]
+
+    fn get_settings_members(&self, setting_id: SettingId<SettingEnum>) -> Vec<PersonId> {
+        vec![PersonId::new(1)]
     }
-    fn get_itinerary(&self, person: PersonId) -> Vec<ItineraryEntry> {
-        vec![ItineraryEntry::new(Setting::<Home>::new(1), 0.5)]
+
+    fn get_itinerary(&self, person: PersonId) -> Vec<ItineraryEntry<SettingEnum>> {
+        vec![ItineraryEntry::new(
+            SettingId::new(SettingEnum::Home, 0),
+            1.0,
+        )]
     }
-    fn get_random_setting(&self, person: PersonId) -> Box<dyn SettingId> {
-        Box::new(Setting::<Home>::new(1))
+
+    fn get_random_setting(&self, person: PersonId) -> SettingId<SettingEnum> {
+        SettingId::new(SettingEnum::Home, 0)
     }
 }
 
