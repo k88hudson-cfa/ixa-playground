@@ -3,9 +3,6 @@
 Instead of defining a concrete `Context` struct, this pattern
 uses a **`Context` trait** that can be extended **in a single trait block**.
 
-The issue here is it's really annoying to have to update the trait definition
-and the implementation simultaneously when you are refactoring or adding methods.
-
 Instead of:
 
 ```rust
@@ -20,7 +17,7 @@ impl NumberExt for Context {
 }
 ```
 
-You can simply do:
+You can write the implementation as a *default* implementation on the trait itself:
 
 ```rust
 trait NumberExt: Context {
