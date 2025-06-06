@@ -40,6 +40,9 @@ mod context {
             }
             context
         }
+        fn do_stuff() {
+            println!("Doing stuff in BaseContext");
+        }
     }
 
     impl Context for BaseContext {
