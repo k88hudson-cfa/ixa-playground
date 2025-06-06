@@ -2,7 +2,7 @@
 
 clean:
 	@echo "Cleaning all build artifacts"
-	@rm -rf target/* book/*
+	@rm -rf book/*
 	@cargo clean
 
 install:
