@@ -69,15 +69,21 @@ jobs:
             }
 
             if (assignee) {
-              await github.rest.issues.removeAssignees({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-              });
-              await github.rest.issues.addAssignees({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                assignees: [assignee],
-              });
+              let existingAssignees = context.payload.pull_request.assignees.map(a => a.login).filter(a => a);
+              if (!existingAssignees.includes(assignee)) {
+                if (existingAssignees.length > 0) {
+                  await github.rest.issues.removeAssignees({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: prNumber,
+                    assignees: existingAssignees
+                  });
+                }
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  assignees: [assignee],
+                });
+              }
             }
