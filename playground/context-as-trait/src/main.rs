@@ -72,7 +72,7 @@ mod bool_plugin {
             *self.plugin_data::<BoolPlugin>()
         }
     }
-    impl<T: Context> BoolExt for T {}
+    impl<T: Context + ?Sized> BoolExt for T {}
 }
 
 mod number_plugin {
@@ -86,7 +86,7 @@ mod number_plugin {
         }
     }
 
-    pub trait NumberExt: Context + BoolExt {
+    pub trait NumberExt: Context {
         fn set_number(&mut self, value: u32) {
             let data_container = self.plugin_data_mut::<NumberPlugin>();
             *data_container = value;
@@ -99,17 +99,12 @@ mod number_plugin {
         }
     }
 
-    pub fn do_stuff_with_numbers<T: NumberExt>(context: &T) {
+    pub fn do_stuff_with_numbers(context: &impl Context) {
         let number = context.get_number();
         println!("Number is: {}", number);
     }
 
-    pub fn do_stuff_with_numbers_2(context: &BaseContext) {
-        let number = context.get_number();
-        println!("Number is: {}", number);
-    }
-
-    impl<T: Context> NumberExt for T {}
+    impl<T: Context + ?Sized> NumberExt for T {}
 }
 
 use bool_plugin::*;
