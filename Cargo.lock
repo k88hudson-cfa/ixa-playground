@@ -11,6 +11,7 @@ name = "context-plugin-global"
 version = "0.1.0"
 dependencies = [
  "ctor",
+ "paste",
  "polonius-the-crab",
 ]
 
