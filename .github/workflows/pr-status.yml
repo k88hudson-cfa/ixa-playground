@@ -55,7 +55,7 @@ jobs:
 
             if (label) {
               // Remove existing labels
-              await github.rest.issues.removeLabels({
+              await github.rest.issues.removeAllLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: prNumber,
