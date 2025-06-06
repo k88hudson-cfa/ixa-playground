@@ -34,8 +34,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: cache-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install dependencies
-        run: cargo install mdbook
       - name: Build Ixa Book
         run: |
           make build
