@@ -1,0 +1,60 @@
+name: PR Status Label and Assignees
+
+on:
+  pull_request:
+    types: [review_requested]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  label-and-assign:
+    runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Add label based on the the status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const reviewer = context.payload.requested_reviewer;
+            const author = context.payload.pull_request.user;
+
+            let label;
+            let assignee;
+
+            if (context.payload.action === 'review_requested') {
+              // If a review is requested, add 'ready-for-review' label
+              label = 'ready-for-review';
+              assignee = reviewer;
+            } else if (context.payload.review.state === 'approved') {
+              label = 'approved';
+              assignee = author;
+            } else if (context.payload.review.state === 'changes_requested') {
+              // If changes are requested, add 'changes-requested' label
+              label = 'changes-requested';
+              assignee = author;
+            } else {
+              // If no specific action, do not change the label
+              return;
+            }
+
+            if (label) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                labels: [label],
+              });
+            }
+
+            if (assignee && assignee.login) {
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                assignees: [reviewer.login],
+              });
+            }

@@ -7,7 +7,6 @@
 
 
 
-
 # Settings Explorations
 
 - [Settings trait](./settings-trait/README.md)
