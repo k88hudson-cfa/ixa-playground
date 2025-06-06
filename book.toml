@@ -1,0 +1,8 @@
+[book]
+authors = ["k88hudson-cfa"]
+language = "en"
+src = "playground"
+title = "ixa-playground"
+
+[build]
+create-missing = false
