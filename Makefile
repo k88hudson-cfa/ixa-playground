@@ -7,7 +7,10 @@ clean:
 
 install:
 	@echo "Installing cargo dependencies"
-	@cargo install mdbook --force
+	@command -v mdbook >/dev/null 2>&1 || { \
+		echo "mdbook not found, installing..."; \
+		cargo install mdbook --force; \
+	}
 
 build: clean
 	@echo "Building the book"
