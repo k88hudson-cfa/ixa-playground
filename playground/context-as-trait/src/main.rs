@@ -6,12 +6,14 @@ mod context {
 
     pub struct BaseContext {
         data_containers: HashMap<TypeId, Box<dyn Any>>,
+        plans: Vec<Box<dyn FnOnce(&mut Self)>>,
     }
 
     impl BaseContext {
         pub fn new() -> Self {
             BaseContext {
                 data_containers: HashMap::new(),
+                plans: Vec::new(),
             }
         }
     }
@@ -26,7 +28,8 @@ mod context {
     pub trait Context {
         fn plugin_data<P: Plugin>(&self) -> &P::DataContainer;
         fn plugin_data_mut<P: Plugin>(&mut self) -> &mut P::DataContainer;
-        fn execute(&self);
+        fn execute(&mut self);
+        fn add_plan(&mut self, time: f64, plan: impl FnOnce(&mut Self) + 'static);
     }
     impl Context for BaseContext {
         fn plugin_data<P: Plugin>(&self) -> &P::DataContainer {
@@ -42,8 +45,14 @@ mod context {
                 .downcast_mut::<P::DataContainer>()
                 .expect("Failed to downcast data container")
         }
-        fn execute(&self) {
+        fn execute(&mut self) {
             println!("Executing!");
+            while let Some(plan) = self.plans.pop() {
+                plan(self);
+            }
+        }
+        fn add_plan(&mut self, time: f64, plan: impl FnOnce(&mut Self) + 'static) {
+            self.plans.push(Box::new(plan));
         }
     }
 
@@ -87,6 +96,12 @@ mod number_plugin {
     }
 
     pub trait NumberExt: Context {
+        fn schedule_set_number(&mut self, time: f64, value: u32) {
+            self.add_plan(time, move |ctx| {
+                ctx.set_number(value);
+                println!("Scheduled number set to: {}", value);
+            });
+        }
         fn set_number(&mut self, value: u32) {
             let data_container = self.plugin_data_mut::<NumberPlugin>();
             *data_container = value;
@@ -119,5 +134,10 @@ fn main() {
     assert_eq!(context.get_bool(), true);
     assert_eq!(context.get_bool_as_number(), 1);
     do_stuff_with_numbers(&context);
+    context.add_plan(1.0, |ctx| {
+        ctx.set_number(100);
+        println!("Plan executed, number set to: {}", ctx.get_number());
+    });
+    context.schedule_set_number(1.0, 32);
     context.execute();
 }
