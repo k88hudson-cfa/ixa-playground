@@ -3,6 +3,7 @@
 # Plugin Explorations
 
 - [Context as trait](./context-as-trait/README.md)
+- [Global registration](./context-plugin-global/README.md)
 
 
 

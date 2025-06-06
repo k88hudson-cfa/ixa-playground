@@ -1,0 +1,8 @@
+[package]
+name = "context-plugin-global"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ctor = "0.4.2"
+polonius-the-crab = "0.4.2"
