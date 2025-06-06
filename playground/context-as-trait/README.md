@@ -27,7 +27,7 @@ trait NumberExt: Context {
 }
 ```
 
-Regular functions can be implemented on a generic or on `BaseContext` (the struct)
+Regular functions can be implemented on `impl Context`
 
 ```rust
 pub fn do_stuff_with_numbers(context: &impl Context) {
