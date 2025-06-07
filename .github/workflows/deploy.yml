@@ -33,7 +33,8 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: cache-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          # We're not actually building the rust files, just mdbook...
+          key: cache-${{ runner.os }}-${{ hashFiles('Makefile') }}
       - name: Build Ixa Book
         run: |
           make build
