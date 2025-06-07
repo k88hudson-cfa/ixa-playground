@@ -5,6 +5,7 @@
 - [Context as trait](./context-as-trait/README.md)
 - [Global registration](./context-plugin-global/README.md)
 - [Global + Context as trait](./context-trait-global/README.md)
+- [Typed enum](./typed-enum/README.md)
 
 # Settings Explorations
 - [AnySettingId trait](./settings-id-trait/README.md)

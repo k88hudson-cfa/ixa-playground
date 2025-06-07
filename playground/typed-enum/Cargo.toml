@@ -1,6 +1,7 @@
 [package]
-name = "settings-enum-typed"
+name = "typed-enum"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+paste.workspace = true

@@ -1,4 +1,4 @@
-# Settings Enum Typed
+# Typed Enum
 
 ### Playground
 
