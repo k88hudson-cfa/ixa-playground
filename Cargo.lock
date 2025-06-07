@@ -91,6 +91,10 @@ name = "settings-enum"
 version = "0.1.0"
 
 [[package]]
+name = "settings-enum-typed"
+version = "0.1.0"
+
+[[package]]
 name = "settings-id-trait"
 version = "0.1.0"
 dependencies = [

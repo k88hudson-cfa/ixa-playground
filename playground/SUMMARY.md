@@ -11,3 +11,4 @@
 - [One setting per entity](./settings-trait/README.md)
 - [One entity for all settings](./settings-trait-flat/README.md)
 - [One entity + Settings enum](./settings-enum/README.md)
+- [Settings enum typed](./settings-enum-typed/README.md)
