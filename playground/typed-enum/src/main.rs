@@ -8,10 +8,10 @@ macro_rules! typed_enum {
         ),* $(,)?
     }) => {
         $(
-            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            #[derive(Debug, Clone, Copy)]
             struct $item $( ( $($sub_item),+ ) )?;
         )+
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #[derive(Debug, Clone, Copy)]
         enum $enum {
             $(
                 $item($item),
@@ -83,6 +83,7 @@ pub trait Property {
     type Value: Copy + std::fmt::Display;
 }
 
+#[derive(Debug, Clone, Copy)]
 struct InfectionData {
     t: f64,
 }
@@ -113,7 +114,7 @@ impl Context {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 struct Age;
 impl Property for Age {
     type Value = u32;

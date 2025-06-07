@@ -5,5 +5,5 @@ edition = "2024"
 
 [dependencies]
 ctor = "0.4.2"
-paste = "1.0.15"
+paste.workspace = true
 polonius-the-crab = "0.4.2"
