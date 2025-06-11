@@ -3,6 +3,7 @@
 # Plugin Explorations
 
 - [Context as trait](./context-as-trait/README.md)
+- [Context as trait (old)](./context-as-trait-old/README.md)
 - [Global registration](./context-plugin-global/README.md)
 - [Global + Context as trait](./context-trait-global/README.md)
 - [Typed enum](./typed-enum/README.md)

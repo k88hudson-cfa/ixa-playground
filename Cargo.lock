@@ -7,6 +7,10 @@ name = "context-as-trait"
 version = "0.1.0"
 
 [[package]]
+name = "context-as-trait-old"
+version = "0.1.0"
+
+[[package]]
 name = "context-plugin-global"
 version = "0.1.0"
 dependencies = [

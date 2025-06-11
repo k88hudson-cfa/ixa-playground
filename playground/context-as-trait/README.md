@@ -1,40 +1,107 @@
-# Context as Trait
+# Context as Trait (Improved)
 
-Instead of defining a concrete `Context` struct, this pattern
-uses a **`Context` trait** that can be extended **in a single trait block**.
+In the current version of Ixa, `Context` is a struct. This is natural to work
+with in almost all cases *except* when writing a trait extension for it;
+the annoyance is that even though this trait is designed only to be implemented
+for `Context`, because you have to use a bunch of its methods you can't
+write a default implementation (and therefore always have to write the definition
+and implementation separately).
 
-Instead of:
+This is kind of not ideal when refactoring.
 
 ```rust
-trait NumberExt {
-    fn get_number(&self) -> u32;
+trait PeopleContextExt {
+    fn get_person_property(&self, id: &PersonId) -> PersonProperty;
+    fn set_person_property(&mut self, id: &PersonId, property: PersonProperty);
 }
+impl PeopleContextExt for Context {
+    fn get_person_property(&self, id: &PersonId) -> PersonProperty {
+        self.get_data::<PeoplePlugin>().get_person_property(id)
+    }
 
-impl NumberExt for Context {
-    fn get_number(&self) -> u32 {
-        self.get_data::<NumberPlugin>()
+    fn set_person_property(&mut self, id: &PersonId, property: PersonProperty) {
+        self.get_data_mut::<PeoplePlugin>().set_person_property(id, property);
     }
 }
 ```
 
-You can write the implementation as a *default* implementation on the trait itself:
+## The solution
+
+Instead of putting all the methods we need on `Context`'s, we can make it a *supertrait*
+instead:
 
 ```rust
-trait NumberExt: Context {
-    fn get_number(&self) -> u32 {
-        self.get_data::<NumberPlugin>()
+struct Context {}
+// Methods that context extensions don't need
+impl Context {
+    fn new() -> Self {
+        Context {}
+    }
+}
+// Methods that context extensions need
+trait PluginContext: PluginData {
+    fn get_data<T: PluginData>(&self) -> &T;
+    fn get_data_mut<T: PluginData>(&mut self) -> &mut T;
+}
+
+impl PluginContext for Context {
+    fn get_data<T: PluginData>(&self) -> &T {
+        // ...
+    }
+
+    fn get_data_mut<T: PluginData>(&mut self) -> &mut T {
+        // ...
     }
 }
 ```
 
-Regular functions can be implemented on `impl Context`
+Now we can implement the `PeopleContextExt` trait for any type that implements `PluginContext`.
+
+Cool!!
 
 ```rust
-pub fn do_stuff_with_numbers(context: &impl Context) {
-    let number = context.get_number();
-    println!("Number is: {}", number);
+trait PeopleContextExt: PluginContext {
+    fn get_person_property(&self, id: &PersonId) -> PersonProperty {
+        self.get_data::<PeoplePlugin>().get_person_property(id)
+    }
+
+    fn set_person_property(&mut self, id: &PersonId, property: PersonProperty) {
+        self.get_data_mut::<PeoplePlugin>().set_person_property(id, property);
+    }
 }
 ```
+
+## Avoiding impl PluginContext
+
+The only issue with the above is that in some situations (such as for callbacks
+that take a `Context`), it's not ideal to have to operate over an `impl PluginContext`,
+or to have to import `PluginContext` everywhere (note this would be a breaking change
+for users not using `ixa::prelude::*`).
+
+The avoid this, we can leave `Context` as is, and instead have the trait mirror methods we want
+to expose to plugins:
+
+```rust
+trait PluginContext {
+    fn get_data<T: PluginData>(&self) -> &T;
+    fn get_data_mut<T: PluginData>(&mut self) -> &mut T;
+}
+impl PluginContext Context {
+    fn get_data<T: PluginData>(&self) -> &T {
+        Context::get_data::<T>(self)
+    }
+
+    fn get_data_mut<T: PluginData>(&mut self) -> &mut T {
+        Context::get_data_mut::<T>(self)
+    }
+}
+```
+
+That way:
+
+* You can use `PluginContext` as a supertrait when defining traits that extend `Context`
+* You can use `Context` directly everywhere else
+* No need to import `PluginContext`, so this is fully backwards compatible.
 
 
 ### Playground

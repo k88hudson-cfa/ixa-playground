@@ -7,24 +7,34 @@ mod context {
         collections::HashMap,
     };
 
-    pub struct Context {
+    pub struct BaseContext {
         data_containers: HashMap<TypeId, Box<dyn Any>>,
         plans: Vec<Box<dyn FnOnce(&mut Self)>>,
     }
 
-    impl Context {
+    impl BaseContext {
         pub fn new() -> Self {
-            Context {
+            BaseContext {
                 data_containers: HashMap::new(),
                 plans: Vec::new(),
             }
         }
-        pub fn execute(&mut self) {
-            println!("Executing!");
-            while let Some(plan) = self.plans.pop() {
-                plan(self);
-            }
-        }
+    }
+
+    pub trait Plugin: 'static {
+        type DataContainer;
+
+        // TODO: Make this init of &Context
+        fn default() -> Self::DataContainer;
+    }
+
+    pub trait Context {
+        fn plugin_data<P: Plugin>(&self) -> &P::DataContainer;
+        fn plugin_data_mut<P: Plugin>(&mut self) -> &mut P::DataContainer;
+        fn execute(&mut self);
+        fn add_plan(&mut self, time: f64, plan: impl FnOnce(&mut Self) + 'static);
+    }
+    impl Context for BaseContext {
         fn plugin_data<P: Plugin>(&self) -> &P::DataContainer {
             self.data_containers
                 .get(&TypeId::of::<P>())
@@ -38,38 +48,20 @@ mod context {
                 .downcast_mut::<P::DataContainer>()
                 .expect("Failed to downcast data container")
         }
+        fn execute(&mut self) {
+            println!("Executing!");
+            while let Some(plan) = self.plans.pop() {
+                plan(self);
+            }
+        }
         fn add_plan(&mut self, time: f64, plan: impl FnOnce(&mut Self) + 'static) {
             self.plans.push(Box::new(plan));
         }
     }
 
-    pub trait Plugin: 'static {
-        type DataContainer;
-        // TODO: Make this init of &Context
-        fn default() -> Self::DataContainer;
-    }
-
-    pub trait PluginContext {
-        fn plugin_data<P: Plugin>(&self) -> &P::DataContainer;
-        fn plugin_data_mut<P: Plugin>(&mut self) -> &mut P::DataContainer;
-
-        fn add_plan(&mut self, time: f64, plan: impl FnOnce(&mut Self) + 'static);
-    }
-    impl PluginContext for Context {
-        fn plugin_data<P: Plugin>(&self) -> &P::DataContainer {
-            self.plugin_data::<P>()
-        }
-        fn plugin_data_mut<P: Plugin>(&mut self) -> &mut P::DataContainer {
-            self.plugin_data_mut::<P>()
-        }
-        fn add_plan(&mut self, time: f64, plan: impl FnOnce(&mut Self) + 'static) {
-            self.add_plan(time, plan);
-        }
-    }
-
     #[macro_export]
     macro_rules! build_context {
-        () => {{ $crate::context::Context::new() }};
+        () => {{ $crate::context::BaseContext::new() }};
     }
 }
 
@@ -83,7 +75,7 @@ mod bool_plugin {
             false
         }
     }
-    pub trait BoolExt: PluginContext {
+    pub trait BoolExt: Context {
         fn set_bool(&mut self, value: bool) {
             let data_container = self.plugin_data_mut::<BoolPlugin>();
             *data_container = value;
@@ -92,7 +84,7 @@ mod bool_plugin {
             *self.plugin_data::<BoolPlugin>()
         }
     }
-    impl<T: PluginContext + ?Sized> BoolExt for T {}
+    impl<T: Context + ?Sized> BoolExt for T {}
 }
 
 mod number_plugin {
@@ -106,7 +98,7 @@ mod number_plugin {
         }
     }
 
-    pub trait NumberExt: PluginContext {
+    pub trait NumberExt: Context {
         fn schedule_set_number(&mut self, time: f64, value: u32) {
             self.add_plan(time, move |ctx| {
                 ctx.set_number(value);
@@ -125,12 +117,12 @@ mod number_plugin {
         }
     }
 
-    pub fn do_stuff_with_numbers(context: &Context) {
+    pub fn do_stuff_with_numbers(context: &impl Context) {
         let number = context.get_number();
         println!("Number is: {}", number);
     }
 
-    impl NumberExt for Context {}
+    impl<T: Context + ?Sized> NumberExt for T {}
 }
 
 use bool_plugin::*;
