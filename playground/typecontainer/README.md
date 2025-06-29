@@ -1,6 +1,6 @@
 ## Use case
 
-We're building plugin system for a framework that centers around
+We're a building plugin system for a framework that centers around
 storing private data in a simulation context object and exposing
 methods to other plugins, which requires initializing them in the right order.
 
@@ -37,12 +37,31 @@ has the following properties:
 
 Our implementations are based around storing values as `Box<dyn Any`> indexed
 by `TypeId`. Every `K` implements a trait `Key` where `Key::Value` implements `Any`.
+Interior mutability is implemented via `UnsafeCell`:
 
-Interior mutability is implemented via `UnsafeCell`, which manually enforces
-aliasing rules under the following constraints:
+```rust
 
-- Values are always heap-allocated (`Box<dyn Any>`)
-- Inserting/mutating an entry may not mutate or remove other entries
-- The public API exposes only safe references to the inner, down-casted
-  `Key::Value`, not the boxed entry itself
+trait Key: 'static {
+    type Value: Any;
+}
 
+pub struct TypeContainer {
+    // InnerContainer maps TypeId -> Box<dyn Any>
+    container: UnsafeCell<InnerContainer>,
+}
+impl InnerContainer {
+    pub fn get<K: Key>(&self) -> Option<&K::Value> {
+       // Find the entry for TypeId::of::<K>
+       // If it exists, downcast Box<dyn Any> to &K::Value
+    }
+
+    pub fn get_mut<K: Key>(&mut self) -> Option<&mut K::Value> {
+        // Same as get but with a mutable reference
+    }
+
+    pub fn try_insert<K: Key>(&mut self, value: K::Value) -> Result<()> {
+        // Find the entry for TypeId::of::<K>, if it exists, return an error
+        // If it does not exist, add a new entry of Box::new(value)
+    }
+}
+````
