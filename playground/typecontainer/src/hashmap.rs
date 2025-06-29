@@ -3,6 +3,7 @@ use std::{
     any::{Any, TypeId},
     cell::UnsafeCell,
     collections::HashMap,
+    collections::hash_map::Entry,
 };
 
 pub struct TypeContainer {
@@ -53,13 +54,13 @@ impl InnerContainer {
     }
 
     fn try_insert<K: Key>(&mut self, value: K::Value) -> Result<(), String> {
-        let type_id = TypeId::of::<K>();
-        if self.map.contains_key(&type_id) {
-            return Err("Container already contains key".into());
+        match self.map.entry(TypeId::of::<K>()) {
+            Entry::Occupied(_) => return Err("Container already contains key".into()),
+            Entry::Vacant(vacant_entry) => {
+                vacant_entry.insert(Box::new(value));
+                return Ok(());
+            }
         }
-        let boxed_value = Box::new(value);
-        self.map.insert(type_id, boxed_value);
-        Ok(())
     }
 }
 
