@@ -1,4 +1,3 @@
-use crate::Key;
 use std::{
     alloc::{self, Layout},
     any::TypeId,
@@ -6,6 +5,8 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
     ptr,
 };
+
+use crate::Key;
 
 pub struct TypeContainer {
     container: UnsafeCell<RawTypeContainer>,
@@ -20,7 +21,7 @@ impl TypeContainer {
 
     pub fn try_insert<K: Key>(&self, value: K::Value) -> Result<(), String> {
         // Safety: all container entries are heap allocated and this insertion
-        //  cannot invalidate any existing pointers
+        //  cannot invalidate any existing API-exposed shared pointers
         unsafe { (*self.container.get()).try_insert::<K>(value) }
     }
 
@@ -56,12 +57,8 @@ impl RawTypeContainer {
             // Start with minimum size 4
             (4, Layout::array::<Option<TypeEntry>>(4).unwrap())
         } else {
-            // This can't overflow because we ensure self.cap <= isize::MAX.
+            // This can't overflow because we ensure self.capacity <= isize::MAX.
             let new_capacity = 2 * self.capacity;
-
-            // `Layout::array` checks that the number of bytes is <= usize::MAX,
-            // but this is redundant since old_layout.size() <= isize::MAX,
-            // so the `unwrap` should never fail.
             let new_layout = Layout::array::<Option<TypeEntry>>(new_capacity).unwrap();
             (new_capacity, new_layout)
         };
@@ -72,6 +69,7 @@ impl RawTypeContainer {
             "Allocation too large"
         );
 
+        // Fill with None
         let new_ptr = unsafe { alloc::alloc(new_layout) as *mut Option<TypeEntry> };
         for i in 0..new_capacity {
             unsafe { ptr::write(new_ptr.add(i), None) }
@@ -83,6 +81,7 @@ impl RawTypeContainer {
                 if let Some((key, value, layout)) = unsafe { ptr::read(self.ptr.add(i)) } {
                     let entry = unsafe { &mut *seek(key, new_ptr, new_capacity) };
                     match entry {
+                        // The keys are unique in the existing array
                         Some(_) => unreachable!(),
                         None => {
                             let _ = entry.insert((key, value, layout));
@@ -104,7 +103,7 @@ impl RawTypeContainer {
 
     fn grow_maybe(&mut self) {
         // Ensure we have no more than 7/8 of the array used
-        if ((self.capacity > 4) & (self.length > self.capacity / 8 * 7))
+        if ((self.capacity > 4) & (self.length > (self.capacity / 8 * 7)))
             | ((self.capacity == 4) & (self.length == 4))
         {
             self.grow()
@@ -115,31 +114,19 @@ impl RawTypeContainer {
         if self.capacity == 0 {
             return None;
         }
-        let entry = unsafe { *seek(TypeId::of::<K>(), self.ptr, self.capacity) };
-        match entry {
-            Some((_, ptr, _)) => {
-                let value = unsafe { &*(ptr as *const K::Value) };
-                return Some(value);
-            }
-            None => {
-                return None;
-            }
+        unsafe {
+            let entry = *seek(TypeId::of::<K>(), self.ptr, self.capacity);
+            entry.map(|(_, ptr, _)| &*(ptr as *const K::Value))
         }
     }
 
-    fn get_mut<K: Key>(&self) -> Option<&mut K::Value> {
+    fn get_mut<K: Key>(&mut self) -> Option<&mut K::Value> {
         if self.capacity == 0 {
             return None;
         }
-        let entry = unsafe { *seek(TypeId::of::<K>(), self.ptr, self.capacity) };
-        match entry {
-            Some((_, ptr, _)) => {
-                let value = unsafe { &mut *(ptr as *mut K::Value) };
-                return Some(value);
-            }
-            None => {
-                return None;
-            }
+        unsafe {
+            let entry = *seek(TypeId::of::<K>(), self.ptr, self.capacity);
+            entry.map(|(_, ptr, _)| &mut *(ptr as *mut K::Value))
         }
     }
 
@@ -179,7 +166,6 @@ impl Drop for RawTypeContainer {
                     }
                 }
             }
-
             // Deallocate the array
             unsafe {
                 alloc::dealloc(
@@ -191,7 +177,11 @@ impl Drop for RawTypeContainer {
     }
 }
 
-fn seek(type_id: TypeId, ptr: *mut Option<TypeEntry>, capacity: usize) -> *mut Option<TypeEntry> {
+unsafe fn seek(
+    type_id: TypeId,
+    ptr: *mut Option<TypeEntry>,
+    capacity: usize,
+) -> *mut Option<TypeEntry> {
     let mut probe = QuadraticProbe::new(get_hash_index(&type_id) as usize, capacity);
     loop {
         let entry = unsafe { *ptr.add(probe.get_index()) };
