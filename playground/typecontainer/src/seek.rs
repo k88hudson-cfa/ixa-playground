@@ -184,15 +184,15 @@ unsafe fn seek(
 ) -> *mut Option<TypeEntry> {
     let mut probe = QuadraticProbe::new(get_hash_index(&type_id) as usize, capacity);
     loop {
-        let entry = unsafe { *ptr.add(probe.get_index()) };
-        match entry {
+        let entry = unsafe { ptr.add(probe.get_index()) };
+        match unsafe { *entry } {
             Some((key, _, _)) => {
                 if key.eq(&type_id) {
-                    return unsafe { ptr.add(probe.get_index()) };
+                    return entry;
                 }
             }
             None => {
-                return unsafe { ptr.add(probe.get_index()) };
+                return entry;
             }
         }
         probe.increment();
