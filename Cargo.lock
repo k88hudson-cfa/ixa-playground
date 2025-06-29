@@ -114,6 +114,10 @@ name = "settings-trait-flat"
 version = "0.1.0"
 
 [[package]]
+name = "typecontainer"
+version = "0.1.0"
+
+[[package]]
 name = "typed-enum"
 version = "0.1.0"
 dependencies = [
