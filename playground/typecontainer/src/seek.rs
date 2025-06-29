@@ -141,7 +141,7 @@ impl RawTypeContainer {
             None => {
                 let _ = entry.insert((
                     type_id,
-                    move_to_heap(value) as *const (),
+                    move_to_heap(value) as AnyPtr,
                     Layout::new::<K::Value>(),
                 ));
                 self.length += 1;
