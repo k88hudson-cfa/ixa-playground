@@ -6,7 +6,9 @@ use std::{
     ptr,
 };
 
-use crate::Key;
+pub trait Key: 'static {
+    type Value;
+}
 
 pub struct TypeContainer {
     container: UnsafeCell<RawTypeContainer>,
@@ -242,122 +244,126 @@ fn move_to_heap<T>(value: T) -> *const T {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
-    use crate::test_suite;
 
-    test_suite!(TypeContainer);
+    struct A;
+    impl Key for A {
+        type Value = usize;
+    }
 
-    // pub struct Context {
-    //     plugin_data: TypeContainer,
-    //     initializing_set: RefCell<HashSet<TypeId>>,
-    // }
+    struct B;
+    impl Key for B {
+        type Value = bool;
+    }
 
-    // impl Context {
-    //     fn new() -> Context {
-    //         Context {
-    //             plugin_data: TypeContainer::new(),
-    //             initializing_set: RefCell::new(HashSet::new()),
-    //         }
-    //     }
+    struct C;
+    impl Key for C {
+        type Value = ();
+    }
 
-    //     fn get_data<T: DataPlugin>(&self, _plugin: T) -> &T::Container {
-    //         if let Some(data) = self.plugin_data.get::<T>() {
-    //             return data;
-    //         } else {
-    //             // Initialize the data plugin
-    //             let type_id = TypeId::of::<T>();
-    //             if self.initializing_set.borrow_mut().insert(type_id) {
-    //                 let new_data = T::init(self);
-    //                 self.initializing_set.borrow_mut().remove(&type_id);
-    //                 let _ = self.plugin_data.try_insert::<T>(new_data);
-    //                 return self.plugin_data.get::<T>().unwrap();
-    //             } else {
-    //                 panic!("Circular dependency detected");
-    //             }
-    //         }
-    //     }
+    struct D;
+    impl Key for D {
+        type Value = f64;
+    }
 
-    //     fn get_data_mut<T: DataPlugin>(&mut self, _plugin: T) -> &mut T::Container {
-    //         let mut self_shadow = self;
-    //         // Use polonius to address borrow checker limitations
-    //         polonius!(|self_shadow| -> &'polonius mut T::Container {
-    //             if let Some(data) = self_shadow.plugin_data.get_mut::<T>() {
-    //                 polonius_return!(data)
-    //             }
-    //         });
-    //         // Initialize the data plugin
-    //         let type_id = TypeId::of::<T>();
-    //         if self_shadow.initializing_set.borrow_mut().insert(type_id) {
-    //             let data = T::init(self_shadow);
-    //             self_shadow.initializing_set.borrow_mut().remove(&type_id);
-    //             let _ = self_shadow.plugin_data.try_insert::<T>(data);
-    //             self_shadow.plugin_data.get_mut::<T>().unwrap()
-    //         } else {
-    //             panic!("Circular dependency detected");
-    //         }
-    //     }
-    // }
+    #[test]
+    fn test_insert() {
+        let container = TypeContainer::new();
 
-    // pub trait DataPlugin: 'static {
-    //     type Container;
+        assert!(container.get::<A>().is_none());
+        assert!(container.get::<B>().is_none());
+        assert!(container.get::<C>().is_none());
+        assert!(container.get::<D>().is_none());
 
-    //     fn init(context: &Context) -> Self::Container;
-    // }
+        assert!(container.try_insert::<A>(1).is_ok());
+        assert!(container.get::<A>().is_some_and(|x| *x == 1));
+        assert!(container.get::<B>().is_none());
+        assert!(container.get::<C>().is_none());
+        assert!(container.get::<D>().is_none());
 
-    // impl<T: DataPlugin> Key for T {
-    //     type Value = T::Container;
-    // }
+        assert!(container.try_insert::<B>(true).is_ok());
+        assert!(container.get::<A>().is_some_and(|x| *x == 1));
+        assert!(container.get::<B>().is_some_and(|x| *x));
+        assert!(container.get::<C>().is_none());
+        assert!(container.get::<D>().is_none());
 
-    // struct PluginA;
-    // impl DataPlugin for PluginA {
-    //     type Container = usize;
+        assert!(container.try_insert::<C>(()).is_ok());
+        assert!(container.get::<A>().is_some_and(|x| *x == 1));
+        assert!(container.get::<B>().is_some_and(|x| *x));
+        assert!(container.get::<C>().is_some_and(|x| x.eq(&())));
+        assert!(container.get::<D>().is_none());
 
-    //     fn init(context: &Context) -> Self::Container {
-    //         if *context.get_data(PluginB) { 1 } else { 0 }
-    //     }
-    // }
+        assert!(container.try_insert::<D>(1.0).is_ok());
+        assert!(container.get::<A>().is_some_and(|x| *x == 1));
+        assert!(container.get::<B>().is_some_and(|x| *x));
+        assert!(container.get::<C>().is_some_and(|x| x.eq(&())));
+        assert!(container.get::<D>().is_some_and(|x| x.eq(&1.0)));
+    }
 
-    // struct PluginB;
-    // impl DataPlugin for PluginB {
-    //     type Container = bool;
+    #[test]
+    fn test_mutate() {
+        let mut container = TypeContainer::new();
 
-    //     fn init(_context: &Context) -> Self::Container {
-    //         true
-    //     }
-    // }
+        let _ = container.try_insert::<A>(1);
+        let _ = container.try_insert::<B>(true);
+        let _ = container.try_insert::<C>(());
+        let _ = container.try_insert::<D>(1.0);
 
-    // #[test]
-    // fn test_context_data() {
-    //     let context = Context::new();
-    //     assert_eq!(*context.get_data(PluginA), 1);
-    //     assert!(*context.get_data(PluginB));
+        let a = container.get_mut::<A>().unwrap();
+        *a = 2;
+        assert!(container.get::<A>().is_some_and(|x| *x == 2));
+        assert!(container.get::<B>().is_some_and(|x| *x));
+        assert!(container.get::<C>().is_some_and(|x| x.eq(&())));
+        assert!(container.get::<D>().is_some_and(|x| x.eq(&1.0)));
 
-    //     let mut context = Context::new();
-    //     *context.get_data_mut(PluginB) = false;
-    //     assert_eq!(*context.get_data(PluginA), 0);
-    // }
+        let b = container.get_mut::<B>().unwrap();
+        *b = false;
+        assert!(container.get::<A>().is_some_and(|x| *x == 2));
+        assert!(container.get::<B>().is_some_and(|x| !*x));
+        assert!(container.get::<C>().is_some_and(|x| x.eq(&())));
+        assert!(container.get::<D>().is_some_and(|x| x.eq(&1.0)));
 
-    // struct CircularPlugin;
-    // impl DataPlugin for CircularPlugin {
-    //     type Container = bool;
+        let c = container.get_mut::<C>().unwrap();
+        *c = ();
+        assert!(container.get::<A>().is_some_and(|x| *x == 2));
+        assert!(container.get::<B>().is_some_and(|x| !*x));
+        assert!(container.get::<C>().is_some_and(|x| x.eq(&())));
+        assert!(container.get::<D>().is_some_and(|x| x.eq(&1.0)));
 
-    //     fn init(context: &Context) -> Self::Container {
-    //         *context.get_data(CircularPlugin)
-    //     }
-    // }
+        let d = container.get_mut::<D>().unwrap();
+        *d = 2.0;
+        assert!(container.get::<A>().is_some_and(|x| *x == 2));
+        assert!(container.get::<B>().is_some_and(|x| !*x));
+        assert!(container.get::<C>().is_some_and(|x| x.eq(&())));
+        assert!(container.get::<D>().is_some_and(|x| x.eq(&2.0)));
+    }
 
-    // #[test]
-    // #[should_panic(expected = "Circular dependency detected")]
-    // fn test_circular_dep() {
-    //     let context = Context::new();
-    //     context.get_data(CircularPlugin);
-    // }
+    #[test]
+    fn test_reference_insert() {
+        let container = TypeContainer::new();
 
-    // #[test]
-    // #[should_panic(expected = "Circular dependency detected")]
-    // fn test_circular_dep_mut() {
-    //     let mut context = Context::new();
-    //     context.get_data_mut(CircularPlugin);
-    // }
+        // Hold on to shared reference while inserting
+        let _ = container.try_insert::<A>(1);
+        let a = container.get::<A>().unwrap();
+
+        // Force internal array to be resized
+        let _ = container.try_insert::<B>(true);
+        let _ = container.try_insert::<C>(());
+        let _ = container.try_insert::<D>(1.0);
+        assert!(container.get::<B>().is_some_and(|x| *x));
+        assert!(container.get::<C>().is_some_and(|x| x.eq(&())));
+        assert!(container.get::<D>().is_some_and(|x| x.eq(&1.0)));
+
+        // Check heap reference is still valid
+        assert_eq!(a, &1);
+    }
+
+    #[test]
+    fn test_double_insert() {
+        let container = TypeContainer::new();
+        assert!(container.try_insert::<A>(1).is_ok());
+        assert!(container.try_insert::<A>(2).is_err());
+        assert!(container.get::<A>().is_some_and(|x| *x == 1));
+    }
 }
