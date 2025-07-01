@@ -1,7 +1,5 @@
 
-## `TypeContainer`
-
-### Use case
+## TypeContainer
 
 We are building a plugin system for a shared simulation context object
 that avoids explicit registration of dependencies; plugins should only be
@@ -32,9 +30,14 @@ has the following properties:
 - The public interface does *not* expose any of its interior mutability; consumers
   cannot mutate entries directly
 
-## `VecCell`
 
-### Use case
+### Implementation
+
+```rust
+{{#rustdoc_include src/raw.rs}}
+```
+
+## VecCell
 
 We want to store property values for entities in a simulation (e.g.,`Age` is a property of `Person`); properties may have a default value or initializer, and different
 modules in a simulation need to be able to get, set, and query over entity properties. Simulations may have a very a large number of entities and their properties are
@@ -54,3 +57,9 @@ accessed often; the distribution of values varies depending on the property.
     - Query for all indexes matching a particular value
 - Consumers may do the following with a *exclusive* (mutable) reference:
     - Set a property for a given entity's index
+
+### Implementation
+
+```rust
+{{#rustdoc_include src/vec_cell.rs}}
+```
