@@ -7,7 +7,7 @@ mod context {
         sync::{LazyLock, Mutex},
     };
 
-    pub static DATA_PLUGINS: LazyLock<Mutex<RefCell<HashSet<TypeId>>>> =
+    static DATA_PLUGINS: LazyLock<Mutex<RefCell<HashSet<TypeId>>>> =
         LazyLock::new(|| Mutex::new(RefCell::new(HashSet::new())));
 
     pub fn add_plugin_to_registry<T: DataPlugin>() {
@@ -16,6 +16,16 @@ mod context {
             .unwrap()
             .borrow_mut()
             .insert(TypeId::of::<T>());
+    }
+
+    pub fn get_plugin_ids() -> Vec<TypeId> {
+        DATA_PLUGINS
+            .lock()
+            .unwrap()
+            .borrow()
+            .iter()
+            .copied()
+            .collect::<Vec<_>>()
     }
 
     pub trait Context {
@@ -33,10 +43,8 @@ mod context {
                 data_plugins: HashMap::new(),
             };
             // Register all data plugins from global list
-            for plugin_type_id in DATA_PLUGINS.lock().unwrap().borrow().iter() {
-                context
-                    .data_plugins
-                    .insert(*plugin_type_id, OnceCell::new());
+            for plugin_type_id in get_plugin_ids() {
+                context.data_plugins.insert(plugin_type_id, OnceCell::new());
             }
             context
         }
